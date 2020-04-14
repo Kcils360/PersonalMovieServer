@@ -24,7 +24,12 @@ console.log('mov', mov);
 
 //superagent to theMovieDB api to get info about each title and store in array of objects
 //release_date
+//id - this is the tmdb id to getcredits
 //title
+//tagline
+//genre_ids
+//poster_path https://image.tmdb.org/t/p/w500/ +
+////getcredits - need id
 //
 
 //start the server and listen for requests
