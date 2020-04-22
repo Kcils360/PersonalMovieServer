@@ -30,12 +30,13 @@ app.get("/", fillCollection)
 //movie constructor
 function Movie(movie) {
     this.title = movie.title ||null;
-    this.id = movie.id || null;
+    this.moviedb_id = movie.id || null;
     this.release_date = movie.release_date || null;
     this.tagline = movie.tagline || '';
     this.directors = [];
     this.genres = [];
     this.actors = [];
+    this.poster_path = '';
     this.local_file_path = '';
 }
 
@@ -51,11 +52,11 @@ function fillCollection(req, res){
         fetchMovieInfo(title, f, Movie)
         .then( data => {            
             fetchMoreMovieInfo(data)
-            .then(data2 => {
-                return fetchMoviePeopleInfo(data2)
-                // .then(data3 => data3)
-                
-            });
+            .then(data2 => { 
+                // storeMovieInfo(data2)
+                info.push(data2)
+                console.log(info);                
+            })
         })
     })
     res.send(movieList)
@@ -76,7 +77,7 @@ function fetchMovieInfo(title, file, Constructor){
 function fetchMoreMovieInfo(movie){
     const key = process.env.MOVIEDBKEY;
     const id = movie.id;
-    const url = `https://api.themoviedb.org/3/movie/${id}?api_key=${key}&language=en-US`;
+    const url = `https://api.themoviedb.org/3/movie/${id}?api_key=${key}&append_to_response=credits`;
     return superagent.get(url)
     .then(data => {
         const n = data.body
@@ -84,30 +85,44 @@ function fetchMoreMovieInfo(movie){
         movie.genres = n.genres.map( g => {
             return(g.name)
         });
-        return movie;
-    })
-}
-
-function fetchMoviePeopleInfo(movie) {
-    const key = process.env.MOVIEDBKEY;
-    const id = movie.id;
-    const url = `https://api.themoviedb.org/3/movie/${id}/credits?api_key=${key}`;
-    return superagent.get(url)
-    .then(data => {
-        const m = data.body
-        m.crew.map(c => {
+        n.credits.crew.map(c => {
             if(c.job === "Director"){
                 movie.directors.push(c.name);
             }
         })
         movie.actors = []
         for(let i = 0; i < 4; i++){
-            movie.actors.push(m.cast[i].name);
+            movie.actors.push(n.credits.cast[i].name);
         }
+        movie.poster_path = n.poster_path;
+        return movie;
     })
 }
 
+// function fetchMoviePeopleInfo(movie) {
+//     const key = process.env.MOVIEDBKEY;
+//     const id = movie.id;
+//     const url = `https://api.themoviedb.org/3/movie/${id}/credits?api_key=${key}`;
+//     return superagent.get(url)
+//     .then(data => {
+//         const m = data.body
+//         m.crew.map(c => {
+//             if(c.job === "Director"){
+//                 movie.directors.push(c.name);
+//             }
+//         })
+//         movie.actors = []
+//         for(let i = 0; i < 4; i++){
+//             movie.actors.push(m.cast[i].name);
+//         }
+//     })
+// }
 
+function storeMovieInfo(movie) {
+    sql.connect(process.env.LOCALDB)
+
+
+}
 
 //superagent to theMovieDB api to get info about each title and store in array of objects
 //first get -
