@@ -10,23 +10,7 @@ const superagent = require('superagent');
 //set up the server
 const PORT = process.env.PORT || 3000;
 const app = express();
-
-//Read in the movie dir and put titles in an array
-let file = 'W:\Movies';
-
-// let mov = [];
-let raw = fs.readdirSync(file);
-console.log('raw', raw);
-// raw.forEach(m => {
-//     mov.push(m.slice(0, -4).toString());
-// });
-
-// console.log('mov', mov);
-
-//dirty get route to check our results
-app.get("/", fillCollection)
-
-
+ 
 //movie constructor
 function Movie(movie) {
     this.title = movie.title ||null;
@@ -40,28 +24,32 @@ function Movie(movie) {
     this.local_file_path = '';
 }
 
-//iterate over the mov array and get movie info from themoviedb api
 let info = [];
-// let movieList = [];
-let results = [];
-// fillCollection(raw);
+
+// fillCollection();
+app.get('/', fillCollection)
 
 function fillCollection(req, res){
-    const movieList = raw.forEach(f => {
-        let title = f.slice(0, -4).toString()
+    fetchRawList().forEach(f => {        
+        let title = f.slice(0, -4).toString() //slice the file type off to get the name of the movie
         fetchMovieInfo(title, f, Movie)
         .then( data => {            
             fetchMoreMovieInfo(data)
             .then(data2 => { 
                 // storeMovieInfo(data2)
                 info.push(data2)
-                console.log(info);                
+                console.log(info);       
             })
         })
     })
-    res.send(movieList)
 }
-//do work! hit the api and get specific movie info 
+//Read in the movie dir and return an array of filenames
+function fetchRawList(){
+    let fp = 'W:/Movies';
+    return fs.readdirSync(fp);
+}
+
+//hit the api and get movie info like title, mdb_id, and release date 
 function fetchMovieInfo(title, file, Constructor){
     const key = process.env.MOVIEDBKEY;
     const url = `https://api.themoviedb.org/3/search/movie?api_key=${key}&language=en-US&query=${title}&page=1&include_adult=false`;
@@ -69,54 +57,34 @@ function fetchMovieInfo(title, file, Constructor){
     .then( data => {
         let m = new Constructor(data.body.results[0]);
         m.local_file_path = 'W:/Movies'+'/'+file;
-
         return m;
     })
 }
-
+//hit api again with the mdb_id and get the rest of the movie object info
 function fetchMoreMovieInfo(movie){
     const key = process.env.MOVIEDBKEY;
-    const id = movie.id;
+    const id = movie.moviedb_id;
     const url = `https://api.themoviedb.org/3/movie/${id}?api_key=${key}&append_to_response=credits`;
     return superagent.get(url)
     .then(data => {
-        const n = data.body
-        movie.tagline = n.tagline;
-        movie.genres = n.genres.map( g => {
+        const m = data.body
+        movie.tagline = m.tagline;
+        movie.genres = m.genres.map( g => {
             return(g.name)
         });
-        n.credits.crew.map(c => {
+        m.credits.crew.map(c => {
             if(c.job === "Director"){
                 movie.directors.push(c.name);
             }
         })
         movie.actors = []
         for(let i = 0; i < 4; i++){
-            movie.actors.push(n.credits.cast[i].name);
+            movie.actors.push(m.credits.cast[i].name);
         }
-        movie.poster_path = n.poster_path;
+        movie.poster_path = m.poster_path;
         return movie;
     })
 }
-
-// function fetchMoviePeopleInfo(movie) {
-//     const key = process.env.MOVIEDBKEY;
-//     const id = movie.id;
-//     const url = `https://api.themoviedb.org/3/movie/${id}/credits?api_key=${key}`;
-//     return superagent.get(url)
-//     .then(data => {
-//         const m = data.body
-//         m.crew.map(c => {
-//             if(c.job === "Director"){
-//                 movie.directors.push(c.name);
-//             }
-//         })
-//         movie.actors = []
-//         for(let i = 0; i < 4; i++){
-//             movie.actors.push(m.cast[i].name);
-//         }
-//     })
-// }
 
 function storeMovieInfo(movie) {
     sql.connect(process.env.LOCALDB)
@@ -124,19 +92,7 @@ function storeMovieInfo(movie) {
 
 }
 
-//superagent to theMovieDB api to get info about each title and store in array of objects
-//first get -
-//release_date
-//id - this is the tmdb id to getcredits
-//title
 
-//second get - using id and passing the object
-//tagline
-//genre_id
-//poster_path https://image.tmdb.org/t/p/w500/ +
-////getcredits - need id
-//filter for job:directing
-//           job:acting
 
 // start the server and listen for requests
 app.listen(PORT, ()=> console.log(`Server up on ${PORT}`));
