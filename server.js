@@ -2,10 +2,13 @@
 
 //bring in packages
 require('dotenv').config();
-const sql = require('mssql');
 const fs = require('fs');
 const express = require('express');
 const superagent = require('superagent');
+
+const pg = require('pg');
+const client = new pg.Client(process.env.DATABASE_URL);
+client.on('error', err => console.error('pg problms', err))
 
 //set up the server
 const PORT = process.env.PORT || 3000;
@@ -92,7 +95,12 @@ function storeMovieInfo(movie) {
 
 }
 
+client.query('select * from movies')
+.then(result => {
+    console.log("sql res", result.rows[0]);
+})
 
 
+client.connect()
 // start the server and listen for requests
 app.listen(PORT, ()=> console.log(`Server up on ${PORT}`));
