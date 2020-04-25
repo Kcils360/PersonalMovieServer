@@ -29,8 +29,8 @@ function Movie(movie) {
 
 let info = [];
 
-// fillCollection();
-app.get('/', fillCollection)
+fillCollection();
+// app.get('/', fillCollection)
 
 function fillCollection(req, res){
     fetchRawList().forEach(f => {        
@@ -39,19 +39,16 @@ function fillCollection(req, res){
         .then( data => {            
             fetchMoreMovieInfo(data)
             .then(data2 => { 
-                // storeMovieInfo(data2)
-                info.push(data2)
-                console.log(info);       
+                storeMovieInfo(data2)      
             })
         })
     })
 }
 //Read in the movie dir and return an array of filenames
 function fetchRawList(){
-    let fp = 'W:/Movies';
+    let fp = 'E:/Star Wars'; //this can be changed to any path
     return fs.readdirSync(fp);
 }
-
 //hit the api and get movie info like title, mdb_id, and release date 
 function fetchMovieInfo(title, file, Constructor){
     const key = process.env.MOVIEDBKEY;
@@ -88,17 +85,18 @@ function fetchMoreMovieInfo(movie){
         return movie;
     })
 }
-
+//take the movie object and store it in the database
 function storeMovieInfo(movie) {
-    sql.connect(process.env.LOCALDB)
+    const SQL = `INSERT INTO movies(
+        title, moviedb_id, tagline, releasedate, genres, directors, actors, poster_path, local_file_path)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`;
+    const values = [movie.title, movie.moviedb_id, movie.tagline, movie.release_date, movie.genres, movie.directors, movie.actors, movie.poster_path, movie.local_file_path];
 
-
+    client.query(SQL, values)
+    .then(result => {
+        console.log('insert success', result.command + ' ' + result.rowCount);
+    })
 }
-
-client.query('select * from movies')
-.then(result => {
-    console.log("sql res", result.rows[0]);
-})
 
 
 client.connect()
