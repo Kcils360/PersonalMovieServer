@@ -6,9 +6,21 @@ const fs = require('fs');
 const express = require('express');
 const superagent = require('superagent');
 
-const pg = require('pg');
-const client = new pg.Client(process.env.DATABASE_URL);
-client.on('error', err => console.error('pg problms', err))
+// const pg = require('pg');
+// const client = new pg.Client(process.env.DATABASE_URL);
+// client.on('error', err => console.error('pg problms', err))
+// client.connect()
+const sql = require('mssql');
+
+const config = {
+    user: 'node',
+    password: 'public',
+    server: 'localhost\\MOVIESERVER',
+    database: 'movieserverdb',
+    options: {
+        trusted_connection: 'True'        
+    }
+}
 
 //set up the server
 const PORT = process.env.PORT || 3000;
@@ -46,7 +58,7 @@ function fillCollection(req, res){
 }
 //Read in the movie dir and return an array of filenames
 function fetchRawList(){
-    let fp = 'E:/Star Wars'; //this can be changed to any path
+    let fp = 'W:/Movies'; //this can be changed to any path
     return fs.readdirSync(fp);
 }
 //hit the api and get movie info like title, mdb_id, and release date 
@@ -87,18 +99,30 @@ function fetchMoreMovieInfo(movie){
 }
 //take the movie object and store it in the database
 function storeMovieInfo(movie) {
-    const SQL = `INSERT INTO movies(
-        title, moviedb_id, tagline, releasedate, genres, directors, actors, poster_path, local_file_path)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`;
-    const values = [movie.title, movie.moviedb_id, movie.tagline, movie.release_date, movie.genres, movie.directors, movie.actors, movie.poster_path, movie.local_file_path];
+    sql.connect(config, err => {
+        if(err)console.error('connect err',err);
 
-    client.query(SQL, values)
-    .then(result => {
-        console.log('insert success', result.command + ' ' + result.rowCount);
+        const insert = new sql.Request()
+        insert.query(insert.template`INSERT INTO movies (title, moviedb_id, tagline, release_date, genres, directors, actors, poster_path, local_file_path) 
+        VALUES (${movie.title}, ${movie.moviedb_id}, ${movie.tagline}, ${movie.release_date}, ${movie.genres}, ${movie.directors}, ${movie.actors}, ${movie.poster_path}, ${movie.local_file_path});`)
+       
     })
+
+
+
+//***********THIS IS THE POSTGRES CODE*****************
+    // const SQL = `INSERT INTO movies(  
+    //     title, moviedb_id, tagline, releasedate, genres, directors, actors, poster_path, local_file_path)
+    //     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`;
+    // const values = [movie.title, movie.moviedb_id, movie.tagline, movie.release_date, movie.genres, movie.directors, movie.actors, movie.poster_path, movie.local_file_path];
+
+    // client.query(SQL, values)
+    // .then(result => {
+    //     console.log('insert success', result.command + ' ' + result.rowCount);
+    // })
 }
 
 
-client.connect()
+
 // start the server and listen for requests
 app.listen(PORT, ()=> console.log(`Server up on ${PORT}`));
