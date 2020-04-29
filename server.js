@@ -10,7 +10,7 @@ const superagent = require('superagent');
 // const client = new pg.Client(process.env.DATABASE_URL);
 // client.on('error', err => console.error('pg problms', err))
 // client.connect()
-const sql = require('mssql');
+const client = require('mssql');
 
 const config = {
     user: 'node',
@@ -32,9 +32,9 @@ function Movie(movie) {
     this.moviedb_id = movie.id || null;
     this.release_date = movie.release_date || null;
     this.tagline = movie.tagline || '';
-    this.directors = [];
-    this.genres = [];
-    this.actors = [];
+    this.directors = '';
+    this.genres = '';
+    this.actors = '';
     this.poster_path = '';
     this.local_file_path = '';
 }
@@ -83,29 +83,32 @@ function fetchMoreMovieInfo(movie){
         movie.tagline = m.tagline;
         movie.genres = m.genres.map( g => {
             return(g.name)
-        });
+        }).toString();
+        let directors = []
         m.credits.crew.map(c => {
             if(c.job === "Director"){
-                movie.directors.push(c.name);
+                directors.push(c.name);
             }
-        })
-        movie.actors = []
+        });
+        movie.directors = directors.toString();
+        let actors = []
         for(let i = 0; i < 4; i++){
-            movie.actors.push(m.credits.cast[i].name);
+            actors.push(m.credits.cast[i].name);
         }
+        movie.actors = actors.toString();
         movie.poster_path = m.poster_path;
+
         return movie;
     })
 }
 //take the movie object and store it in the database
 function storeMovieInfo(movie) {
-    sql.connect(config, err => {
+    client.connect(config, err => {
         if(err)console.error('connect err',err);
 
-        const insert = new sql.Request()
+        const insert = new client.Request()
         insert.query(insert.template`INSERT INTO movies (title, moviedb_id, tagline, release_date, genres, directors, actors, poster_path, local_file_path) 
         VALUES (${movie.title}, ${movie.moviedb_id}, ${movie.tagline}, ${movie.release_date}, ${movie.genres}, ${movie.directors}, ${movie.actors}, ${movie.poster_path}, ${movie.local_file_path});`)
-       
     })
 
 
