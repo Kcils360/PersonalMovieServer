@@ -6,10 +6,7 @@ const fs = require('fs');
 const express = require('express');
 const superagent = require('superagent');
 
-// const pg = require('pg');
-// const client = new pg.Client(process.env.DATABASE_URL);
-// client.on('error', err => console.error('pg problms', err))
-// client.connect()
+
 const client = require('mssql');
 
 const config = {
@@ -28,15 +25,15 @@ const app = express();
  
 //movie constructor
 function Movie(movie) {
-    this.title = movie.title ||null;
-    this.moviedb_id = movie.id || null;
+    this.title = movie.title;
+    this.moviedb_id = movie.id;
     this.release_date = movie.release_date || null;
     this.tagline = movie.tagline || '';
     this.directors = '';
     this.genres = '';
     this.actors = '';
     this.poster_path = '';
-    this.local_file_path = '';
+    this.local_file_path = movie.local_file_path;
 }
 
 let info = [];
@@ -47,31 +44,42 @@ fillCollection();
 function fillCollection(req, res){
     fetchRawList().forEach(f => {        
         let title = f.slice(0, -4).toString() //slice the file type off to get the name of the movie
-        fetchMovieInfo(title, f, Movie)
-        .then( data => {            
-            fetchMoreMovieInfo(data)
-            .then(data2 => { 
-                storeMovieInfo(data2)      
-            })
+        fetchMovieInfo(title, f)
+        .then( data => {     
+            if (data.moviedb_id === -1){
+                storeMovieInfo(data);
+            } else{
+                fetchMoreMovieInfo(data)
+                .then(data2 => { 
+                    storeMovieInfo(data2)      
+                })
+            }                 
         })
     })
 }
 //Read in the movie dir and return an array of filenames
 function fetchRawList(){
-    let fp = 'W:/Movies'; //this can be changed to any path
+    let fp = 'W:/Test'; //this can be changed to any path
     return fs.readdirSync(fp);
 }
+
+//TODO modularize this function
 //hit the api and get movie info like title, mdb_id, and release date 
-function fetchMovieInfo(title, file, Constructor){
+function fetchMovieInfo(title, file){
     const key = process.env.MOVIEDBKEY;
     const url = `https://api.themoviedb.org/3/search/movie?api_key=${key}&language=en-US&query=${title}&page=1&include_adult=false`;
     return superagent.get(url)
     .then( data => {
-        let m = new Constructor(data.body.results[0]);
+        if(data.body.total_results === 0){
+            return new Movie({title: file, id: -1, local_file_path: 'W:/Movies'+'/'+file})
+        }
+        let m = new Movie(data.body.results[0]);
         m.local_file_path = 'W:/Movies'+'/'+file;
         return m;
     })
 }
+
+//TODO modularize this function
 //hit api again with the mdb_id and get the rest of the movie object info
 function fetchMoreMovieInfo(movie){
     const key = process.env.MOVIEDBKEY;
@@ -101,6 +109,8 @@ function fetchMoreMovieInfo(movie){
         return movie;
     })
 }
+
+//TODO modularize this function
 //take the movie object and store it in the database
 function storeMovieInfo(movie) {
     client.connect(config, err => {
@@ -110,19 +120,6 @@ function storeMovieInfo(movie) {
         insert.query(insert.template`INSERT INTO movies (title, moviedb_id, tagline, release_date, genres, directors, actors, poster_path, local_file_path) 
         VALUES (${movie.title}, ${movie.moviedb_id}, ${movie.tagline}, ${movie.release_date}, ${movie.genres}, ${movie.directors}, ${movie.actors}, ${movie.poster_path}, ${movie.local_file_path});`)
     })
-
-
-
-//***********THIS IS THE POSTGRES CODE*****************
-    // const SQL = `INSERT INTO movies(  
-    //     title, moviedb_id, tagline, releasedate, genres, directors, actors, poster_path, local_file_path)
-    //     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`;
-    // const values = [movie.title, movie.moviedb_id, movie.tagline, movie.release_date, movie.genres, movie.directors, movie.actors, movie.poster_path, movie.local_file_path];
-
-    // client.query(SQL, values)
-    // .then(result => {
-    //     console.log('insert success', result.command + ' ' + result.rowCount);
-    // })
 }
 
 

@@ -1,7 +1,7 @@
 'use strict';
 
 // require('dotenv').config();
-const sql = require('mssql');
+const client = require('mssql');
 
 
 const config = {
@@ -14,40 +14,13 @@ const config = {
     }
 }
 
-// let config = 'Server=localhost\\SQLEXPRESS;Database=master;Trusted_Connection=True';
+//take the movie object and store it in the database
+function storeMovieInfo(movie) {
+    client.connect(config, err => {
+        if(err)console.error('connect err',err);
 
-
-// sql.connect(config, function( err ) {
-//     if(err)console.error('connect err',err);
-//     // else(console.log('good connection'));
-//     let request = new sql.Request();
-//     request.query('SELECT * FROM movies', function (err, records) {
-//         if(err)console.log('record err',err);
-//         console.log('records', records);
-//     });
-//     sql.close();
-// })
-
-sql.connect(config, err => {
-    if(err)console.error('connect err',err);
-    let values = ['Test 3', -1, 'Yet another test'];
-
-    let insert = new sql.Request()
- 
-
-    insert.query(insert.template`INSERT INTO movies (title, moviedb_id, tagline) VALUES (${values[0]}, ${values[1]}, ${values[2]})`);
-
-    let request = new sql.Request();
-    new sql.Request().query('SELECT * FROM movies', (err, result) => {
-    if(err)console.error('result err',err);
-        console.log('result', result);
+        const insert = new client.Request()
+        insert.query(insert.template`INSERT INTO movies (title, moviedb_id, tagline, release_date, genres, directors, actors, poster_path, local_file_path) 
+        VALUES (${movie.title}, ${movie.moviedb_id}, ${movie.tagline}, ${movie.release_date}, ${movie.genres}, ${movie.directors}, ${movie.actors}, ${movie.poster_path}, ${movie.local_file_path});`)
     })
-})
-
-
-
-
-
-
-
-// Server=(localdb)\\mssqllocaldb,1433;Database=AmazingToDoApp;User Id=DESKTOP-816KFN7\\Kcils;Password=;Encrypt=true
+}
